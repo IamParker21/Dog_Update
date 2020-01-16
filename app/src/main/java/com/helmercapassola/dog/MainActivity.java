@@ -20,6 +20,8 @@ import androidx.core.app.ActivityCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.preference.Preference;
+import android.preference.PreferenceManager;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
@@ -32,6 +34,7 @@ import android.widget.Toast;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -67,8 +70,14 @@ public class MainActivity extends AppCompatActivity {
 
         SharedPreferences preferences = getPreferences(Context.MODE_PRIVATE);
         String value = preferences.getString("text", "Não tem dados");
+        List<Dog> saveDogList = DogSharedPreferences.loadDog(this, "dogList");
+        if (saveDogList != null){
+            getSupportActionBar().setTitle("Dados");
+        }else{
+            getSupportActionBar().setTitle(value);
+        }
 
-        getSupportActionBar().setTitle(value);
+
 
 
         FloatingActionButton fab = findViewById(R.id.fab);
@@ -78,6 +87,21 @@ public class MainActivity extends AppCompatActivity {
 
                 DialogShow();
 
+            }
+        });
+
+        Button btn_erase = findViewById(R.id.btn_erase);
+
+        btn_erase.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(MainActivity.this);
+                sharedPreferences.edit().clear().commit();
+                dogAdapter = null;
+                recyclerView.setAdapter(dogAdapter);
+                getSupportActionBar().setTitle("Sem Dados");
+                Toast.makeText(MainActivity.this,"Dados Foram Apagados",Toast.LENGTH_LONG).show();
             }
         });
     }
@@ -111,26 +135,39 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                save();
+               getSupportActionBar().setTitle("Dados");
             }
         });
 
 
         dialog.setTitle("Novo Item");
         dialog.show();
+
+
     }
 
     public void  save(){
 
-
         String title = new_title.getText().toString();
         String desc = new_desc.getText().toString();
-        dogAdapter.dogList.add(new Dog(title,desc,ficheiro));
-        dogAdapter.notifyDataSetChanged();
-        DogSharedPreferences.saveDotList(dogAdapter.dogList, MainActivity.this, "dogList");
-        ficheiro = null;
-        dialog.dismiss();
-    }
 
+
+        if(dogAdapter == null){
+            dogAdapter = new DogAdapter(this);
+            recyclerView.setAdapter(dogAdapter);
+        }
+
+        if(!title.isEmpty() && !desc.isEmpty() && ficheiro != null) {
+            dogAdapter.dogList.add(new Dog(title, desc, ficheiro));
+            dogAdapter.notifyDataSetChanged();
+            DogSharedPreferences.saveDotList(dogAdapter.dogList, MainActivity.this, "dogList");
+            ficheiro = null;
+            dialog.dismiss();
+        }else {
+            Toast.makeText(this,"Preencha Todos Campos",Toast.LENGTH_LONG).show();
+        }
+
+    }
 
     public  boolean isStoragePermissionGrantend(){
 
@@ -138,8 +175,6 @@ public class MainActivity extends AppCompatActivity {
                 Manifest.permission.READ_EXTERNAL_STORAGE)
                 == PackageManager.PERMISSION_GRANTED;
     }
-
-
 
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -155,9 +190,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     }
-
     //localizar ficheiro
-
     public  String getRealPathFormURI(Uri  contentURI){
 
         Cursor cursor = getContentResolver().query(contentURI, null, null, null, null);
@@ -168,15 +201,12 @@ public class MainActivity extends AppCompatActivity {
         cursor.close();
         return result;
     }
-
-
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
     }
-
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         // Handle action bar item clicks here. The action bar will
